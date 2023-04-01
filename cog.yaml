@@ -1,0 +1,25 @@
+build:
+  gpu: true
+
+  system_packages:
+    - 'ffmpeg'
+    - 'libsndfile1'
+
+  python_version: '3.8'
+
+  python_packages:
+    - 'ffmpeg-python==0.2.0'
+    - 'torch==1.11.0'
+    - 'torchvision==0.12.0'
+    - 'torchaudio==0.11.0'
+    - 'pyannote.audio==2.1.1'
+    - 'openai-whisper==20230314'
+
+  run:
+    - 'wget -O - https://pyannote-speaker-diarization.s3.eu-west-2.amazonaws.com/data-2023-03-25-02.tar.gz | tar xz -C /'
+    - 'mkdir /data/whisper'
+    - 'wget -P /data/whisper https://openaipublic.azureedge.net/main/whisper/models/d7440d1dc186f76616474e0ff0b3b6b879abc9d1a4926b7adfa41db2d497ab4f/medium.en.pt'
+
+image: 'r8.im/meronym/speaker-transcription'
+
+predict: 'predict.py:Predictor'
