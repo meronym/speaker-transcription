@@ -7,6 +7,7 @@ wget -P /data/whisper https://openaipublic.azureedge.net/main/whisper/models/d74
 
 import json
 import tempfile
+from typing import Optional
 
 import numpy as np
 import torch
@@ -69,7 +70,7 @@ class Predictor(BasePredictor):
         }
         return self.diarization_post.process(diarization, embeddings)
 
-    def run_transcription(self, audio, segments):
+    def run_transcription(self, audio, segments, whisper_prompt):
         print('transcribing segments...')
         self.whisper.to("cuda")
         trimmer = Audio(sample_rate=16000, mono=True)
@@ -81,9 +82,9 @@ class Predictor(BasePredictor):
             frames, _ = trimmer.crop(audio, Segment(start, stop))
             # audio data was already downmixed to mono, so exract the first (only) channel
             frames = frames[0]
-            seg['transcript'] = self.transcribe_segment(frames, start)
+            seg['transcript'] = self.transcribe_segment(frames, start, whisper_prompt)
 
-    def transcribe_segment(self, audio, ctx_start):
+    def transcribe_segment(self, audio, ctx_start, whisper_prompt):
         # `temperature`: temperature to use for sampling
         # `temperature_increment_on_fallback``: temperature to increase when
         # falling back when the decoding fails to meet either of the thresholds below
@@ -102,7 +103,7 @@ class Predictor(BasePredictor):
         suppress_tokens = "-1"
 
         # `initial_prompt`: optional text to provide as a prompt for the first window
-        initial_prompt = None
+        initial_prompt = whisper_prompt
 
         # `condition_on_previous_text`: if True, provide the previous output of the model
         # as a prompt for the next window; disabling may make the text inconsistent across windows,
@@ -146,6 +147,10 @@ class Predictor(BasePredictor):
     def predict(
         self,
         audio: Path = Input(description="Audio file"),
+        whisper_prompt: Optional[str] = Input(
+            default=None,
+            description="Optional text to provide as a prompt for each Whisper model call.",
+        ),
     ) -> Path:
         """Run a single prediction on the model"""
 
@@ -158,7 +163,7 @@ class Predictor(BasePredictor):
             result = self.run_diarization()
 
         # transcribe segments
-        self.run_transcription(self.audio_pre.output_path, result["segments"])
+        self.run_transcription(self.audio_pre.output_path, result["segments"], whisper_prompt)
 
         # format segments
         result["segments"] = self.diarization_post.format_segments(
