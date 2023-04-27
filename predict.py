@@ -7,7 +7,6 @@ wget -P /data/whisper https://openaipublic.azureedge.net/main/whisper/models/d74
 
 import json
 import tempfile
-from typing import Optional
 
 import numpy as np
 import torch
@@ -72,6 +71,9 @@ class Predictor(BasePredictor):
 
     def run_transcription(self, audio, segments, whisper_prompt):
         print('transcribing segments...')
+        if whisper_prompt:
+            print('using prompt:', repr(whisper_prompt))
+        
         self.whisper.to("cuda")
         trimmer = Audio(sample_rate=16000, mono=True)
         for seg in segments:
@@ -147,7 +149,7 @@ class Predictor(BasePredictor):
     def predict(
         self,
         audio: Path = Input(description="Audio file"),
-        whisper_prompt: Optional[str] = Input(
+        prompt: str = Input(
             default=None,
             description="Optional text to provide as a prompt for each Whisper model call.",
         ),
@@ -163,7 +165,7 @@ class Predictor(BasePredictor):
             result = self.run_diarization()
 
         # transcribe segments
-        self.run_transcription(self.audio_pre.output_path, result["segments"], whisper_prompt)
+        self.run_transcription(self.audio_pre.output_path, result["segments"], prompt)
 
         # format segments
         result["segments"] = self.diarization_post.format_segments(
